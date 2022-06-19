@@ -4,6 +4,7 @@
 using AsyncMethodsN;
 using System.Diagnostics;
 using TPL;
+using PLINQ;
 
 /*
 #region ContinueWith
@@ -63,8 +64,9 @@ await AsyncMethods.FromTaskA();
 */
 
 //TplClass.PForEach();
+//TplClass.InterferenceParallel();
 
-TplClass.InterferenceParallel();
+PlinqA.ExceptionHandling();
 
 namespace AsyncMethodsN
 {
@@ -401,6 +403,68 @@ namespace TPL
             var argNew = Math.Exp(arg);
         }
 
+    }
+}
+
+namespace PLINQ
+{
+    public class PlinqA
+    {
+        public static void AsParallelMethod()
+        {
+            var list = Enumerable.Range(1,100).ToList();
+            List<int> newList;
+
+            newList = list.AsParallel().Where(x => x % 2 == 0).ToList();
+
+            /*
+             * When we use AsParallel Method to fetch data from array,entity, xml .. 
+             * AsParallel methods fetchs all data and do operations with parallel way
+             * And we can use ForAll methods for that time
+             * Since it returns IParallelQueryable interface and we benefit from it
+             * However when we fetch data normal way, it sends queries to the database after that it do operations with parallel way on obtained data
+             */
+
+            /*
+             *WithDegreeOfParalleleism() : you can set core number of the operation
+             *WithExecuteMode(): you can force method to do operations with parallel way
+             *AsOrdered(): it keeps the order of data
+             */
+
+        }
+
+        public static void ExceptionHandling()
+        {
+
+            var list = Enumerable.Range(1, 100).ToList().Select(x => new { Value = x.ToString() });
+
+            var query = list.AsParallel().Where(x =>
+            {
+                try
+                {
+                    return x.Value[2] == 'a';
+                }
+                catch (Exception)
+                {
+                    return false;
+                }
+
+            });
+
+            try
+            {
+                query.ForAll(a =>
+                    {
+                        Console.WriteLine(a.Value);
+                    });
+            }
+            catch (AggregateException ex)
+            {
+
+                Console.WriteLine(ex.InnerExceptions.First().Message);
+            }
+
+        }
     }
 }
 
