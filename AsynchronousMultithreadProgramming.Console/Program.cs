@@ -2,6 +2,8 @@
 
 
 using AsyncMethodsN;
+using System.Diagnostics;
+using TPL;
 
 /*
 #region ContinueWith
@@ -54,11 +56,15 @@ await AsyncMethods.StartNewA();
 #endregion
 */
 
-
+/*
 #region FromTask
 await AsyncMethods.FromTaskA();
 #endregion
+*/
 
+//TplClass.PForEach();
+
+TplClass.InterferenceParallel();
 
 namespace AsyncMethodsN
 {
@@ -301,6 +307,101 @@ namespace AsyncMethodsN
         #endregion
     }
 
+}
+
+namespace TPL
+{
+    public class TplClass
+    {
+
+        public static void PForEach()
+        {
+            #region ParallelForEach
+            Stopwatch stopWatch = new Stopwatch();
+            stopWatch.Start();
+            List<int> ints = Enumerable.Range(1, 1000).ToList();
+
+            Parallel.ForEach(ints, arg =>
+            {
+                MathOperations(arg);
+            });
+            stopWatch.Stop();
+
+            Console.WriteLine("Elapsed time multiThread: " + stopWatch.ElapsedMilliseconds); 
+            #endregion
+
+            #region WithoutParallel
+
+            stopWatch.Restart();
+
+            stopWatch.Start();
+            List<int> intsNew = Enumerable.Range(1, 1000).ToList();
+            intsNew.ForEach(arg =>
+            {
+                MathOperations(arg);
+            });
+
+            stopWatch.Stop();
+
+            Console.WriteLine("Elapsed time oneThread: " + stopWatch.ElapsedMilliseconds); 
+            #endregion
+        }
+
+        public static void InterferenceParallel()
+        {
+            int size = 0;
+
+            List<int> ints = Enumerable.Range(1, 1000).ToList();
+
+            Parallel.ForEach(ints, arg =>
+            {
+                Interlocked.Add(ref size, arg);
+            });
+
+            Console.WriteLine("Result: " + size);
+
+        }
+
+        public static void InterferenceParallelWithSeperately()
+        {
+            int total = 0;
+
+            Parallel.ForEach(Enumerable.Range(1, 100).ToList(), () => 0, (arg, loop, subTotal) =>
+            {
+                subTotal += arg;
+                return subTotal;
+            }, (subTotal) =>
+            {
+                Interlocked.And(ref total, subTotal);
+            });
+        }
+
+        public static void CancellationToken()
+        {
+
+            CancellationTokenSource cancellationTokenSource = new CancellationTokenSource();
+            ParallelOptions parallelOptions = new ParallelOptions();
+            parallelOptions.CancellationToken = cancellationTokenSource.Token;
+
+            int total = 0;
+
+            Parallel.ForEach(Enumerable.Range(1, 100).ToList(),parallelOptions ,() => 0, (arg, loop, subTotal) =>
+            {
+                subTotal += arg;
+                return subTotal;
+            }, (subTotal) =>
+            {
+                parallelOptions.CancellationToken.ThrowIfCancellationRequested();
+                Interlocked.And(ref total, subTotal);
+            });
+        }
+
+        public static void MathOperations(int arg)
+        {
+            var argNew = Math.Exp(arg);
+        }
+
+    }
 }
 
 namespace Classes
